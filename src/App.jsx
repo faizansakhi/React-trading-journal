@@ -3,7 +3,7 @@ import './App.css'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import { calculateForexPL, getPairInfo, calculatePipValue, formatPrice } from './forexCalculator'
-import { Plus, X, Search, TrendingUp, TrendingDown, Zap, Plus as PlusCircle, Edit2, Trash2, FileX, XCircle } from 'lucide-react'
+import { Plus, X, Search, TrendingUp, TrendingDown, Zap, Plus as PlusCircle, Edit2, Trash2, FileX, XCircle, Menu } from 'lucide-react'
 
 // Common Forex Pairs List
 const FOREX_PAIRS = [
@@ -869,6 +869,28 @@ function MainApp() {
   const [showStrategyModal, setShowStrategyModal] = useState(false)
   const [newStrategyName, setNewStrategyName] = useState('')
   const [tempBalance, setTempBalance] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect window resize for mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    
+    // Check on mount
+    checkMobile()
+    
+    const handleResize = () => {
+      checkMobile()
+      if (window.innerWidth > 768) {
+        setSidebarOpen(false) // Close sidebar when switching to desktop
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Save active view to localStorage
   useEffect(() => {
@@ -1045,6 +1067,14 @@ function MainApp() {
   return (
     <>
       <div className="app-container">
+        {/* Sidebar overlay for mobile only */}
+        {isMobile && sidebarOpen && (
+          <div 
+            className="sidebar-overlay"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
         <Sidebar 
           activeView={activeView} 
           setActiveView={setActiveView}
@@ -1053,7 +1083,21 @@ function MainApp() {
           onSwitchStrategy={handleSwitchStrategy}
           onAddStrategy={handleAddNewStrategy}
           onDeleteStrategy={handleDeleteStrategy}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
+        
+        {/* Mobile hamburger menu - only show on mobile when sidebar is closed */}
+        {isMobile && !sidebarOpen && (
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={24} />
+          </button>
+        )}
+        
         <main className="main-content">
           {renderView()}
         </main>

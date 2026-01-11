@@ -8,7 +8,9 @@ const Sidebar = ({
   currentStrategy, 
   onSwitchStrategy, 
   onAddStrategy,
-  onDeleteStrategy 
+  onDeleteStrategy,
+  isOpen = false,
+  onClose
 }) => {
   const [showStrategies, setShowStrategies] = useState(false)
   const [deleteModal, setDeleteModal] = useState({ show: false, strategyId: null, strategyName: '' })
@@ -26,8 +28,13 @@ const Sidebar = ({
   const strategiesArray = Object.values(strategies || {})
   const currentStrategyData = strategies?.[currentStrategy]
 
+  const handleNavClick = (viewId) => {
+    setActiveView(viewId)
+    if (onClose) onClose() // Close sidebar on mobile after navigation
+  }
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <h1 className="sidebar-logo">
           <span className="logo-icon"><Diamond size={20} /></span>
@@ -106,7 +113,7 @@ const Sidebar = ({
           <button
             key={item.id}
             className={`sidebar-nav-item ${activeView === item.id ? 'active' : ''}`}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => handleNavClick(item.id)}
           >
             <span className="nav-icon"><IconComponent size={20} /></span>
             <span className="nav-label">{item.label}</span>

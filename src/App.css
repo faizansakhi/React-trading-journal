@@ -20,6 +20,45 @@ body {
   display: flex;
   min-height: 100vh;
   background: #0f0f1e;
+  position: relative;
+}
+
+/* Mobile menu button */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1001;
+  background: #8b5cf6;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+  background: #7c3aed;
+  transform: scale(1.05);
+}
+
+.mobile-menu-btn:active {
+  transform: scale(0.95);
+}
+
+/* Sidebar overlay for mobile */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999;
+  backdrop-filter: blur(4px);
 }
 
 /* ========== SIDEBAR ========== */
@@ -1779,12 +1818,15 @@ body {
 }
 
 /* ========== RESPONSIVE ========== */
+
+/* Tablet landscape and below */
 @media (max-width: 1400px) {
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
+/* Tablet */
 @media (max-width: 1024px) {
   .dashboard-content {
     flex-direction: column;
@@ -1803,42 +1845,271 @@ body {
   }
 }
 
+/* Mobile landscape and portrait */
 @media (max-width: 768px) {
+  /* Show mobile menu button */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Show sidebar overlay when open */
+  .sidebar-overlay {
+    display: block;
+  }
+
+  /* Sidebar becomes hamburger */
   .sidebar {
-    width: 72px;
+    position: fixed;
+    left: -100%;
+    width: 280px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
   }
 
-  .sidebar-logo .logo-text {
-    display: none;
-  }
-
-  .nav-label {
-    display: none;
+  .sidebar.open {
+    left: 0;
   }
 
   .main-content {
-    margin-left: 72px;
+    margin-left: 0;
+    width: 100%;
+    padding: 60px 8px 16px 8px; /* Top padding for hamburger button */
   }
 
+  /* Dashboard mobile */
   .dashboard {
+    padding: 12px 8px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dashboard-filters {
+    width: 100%;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group select {
+    width: 100%;
+  }
+
+  /* Stats cards - single column on mobile */
+  .stats-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
     padding: 16px;
   }
 
-  .stats-cards {
-    grid-template-columns: 1fr;
+  /* Calendar mobile */
+  .calendar {
+    overflow-x: auto;
   }
 
   .calendar-day {
-    min-height: 80px;
-    font-size: 12px;
+    min-height: 70px;
+    font-size: 11px;
+    padding: 4px;
+  }
+
+  .calendar-header button {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  /* Trades mobile */
+  .trades-container {
+    padding: 12px 8px;
+  }
+
+  .trades-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
   }
 
   .trades-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
+  /* Trade card mobile */
+  .trade-card {
+    padding: 14px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .symbol-info {
+    width: 100%;
+  }
+
+  .trade-type {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  .trade-details {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Forms mobile */
   .form-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  /* Modal mobile */
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    padding: 20px 16px;
+    margin: 16px;
+  }
+
+  .welcome-modal {
+    padding: 24px 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 22px;
+  }
+
+  /* Buttons mobile */
+  .btn-large {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+
+  /* Sidebar strategies mobile */
+  .strategy-item {
+    padding: 10px 12px;
+  }
+
+  /* Widgets panel mobile */
+  .widgets-panel {
+    padding: 16px 12px;
+  }
+
+  .widget {
+    padding: 16px;
+  }
+
+  /* Empty states mobile */
+  .dashboard-empty-state,
+  .trades-empty-state {
+    padding: 24px 16px;
+    min-height: calc(100vh - 200px);
+  }
+
+  .empty-state-content {
+    max-width: 100%;
+  }
+
+  .empty-state-content h2 {
+    font-size: 24px;
+  }
+
+  .empty-state-features {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .feature-item {
+    padding: 12px;
+  }
+}
+
+/* Small mobile (iPhone SE, etc) */
+@media (max-width: 480px) {
+  .app-container {
+    font-size: 14px;
+  }
+
+  .dashboard {
+    padding: 8px 4px;
+  }
+
+  .stats-cards {
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .calendar-day {
+    min-height: 60px;
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .trade-card {
+    padding: 12px;
+  }
+
+  .trade-details {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 98%;
+    padding: 16px 12px;
+  }
+
+  .create-strategy-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .empty-state-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .empty-state-content h2 {
+    font-size: 20px;
+  }
+
+  .empty-state-content p {
+    font-size: 14px;
   }
 }
 
