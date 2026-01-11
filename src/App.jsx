@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import Sidebar from './components/Sidebar'
+import Dashboard from './components/Dashboard'
 import { calculateForexPL, getPairInfo, calculatePipValue, formatPrice } from './forexCalculator'
+import { Plus, X, Search, TrendingUp, TrendingDown, Zap, Plus as PlusCircle, Edit2, Trash2, FileX, XCircle } from 'lucide-react'
 
 // Common Forex Pairs List
 const FOREX_PAIRS = [
@@ -33,13 +36,18 @@ const FOREX_PAIRS = [
   { value: 'ETHUSD', label: 'ETH/USD - Ethereum vs US Dollar', category: 'Crypto' },
 ]
 
-function App() {
+function App({ existingTrades = [], onTradesUpdate }) {
+  // View State - removed as it's now in MainApp
+  
   // State Management
-  const [trades, setTrades] = useState([])
+  const [trades, setTrades] = useState(existingTrades)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [filterType, setFilterType] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+  const [sortBy, setSortBy] = useState('date-desc') // 'date-desc', 'date-asc', 'pl-desc', 'pl-asc'
+  const [expandedTrade, setExpandedTrade] = useState(null)
   
   // Searchable dropdown state
   const [pairSearch, setPairSearch] = useState('')
@@ -58,25 +66,23 @@ function App() {
     exitPrice: '',
     notes: '',
     screenshot: null,
-    riskRewardRatio: '' // e.g., '1:2', '1:3'
+    riskRewardRatio: '', // e.g., '1:2', '1:3'
+    isNoTrade: false // New field for No Trade days
   })
 
   // Live P/L calculation state
   const [livePL, setLivePL] = useState(0)
   const [pairInfo, setPairInfo] = useState(null)
 
-  // Load trades from localStorage on mount
+  // Update trades when existingTrades prop changes
   useEffect(() => {
-    const savedTrades = localStorage.getItem('tradingJournal')
-    if (savedTrades) {
-      setTrades(JSON.parse(savedTrades))
-    }
-  }, [])
+    setTrades(existingTrades)
+  }, [existingTrades])
 
-  // Save trades to localStorage whenever they change
+  // Notify parent component when trades change
   useEffect(() => {
-    if (trades.length > 0) {
-      localStorage.setItem('tradingJournal', JSON.stringify(trades))
+    if (onTradesUpdate && trades !== existingTrades) {
+      onTradesUpdate(trades)
     }
   }, [trades])
 
@@ -296,22 +302,39 @@ function App() {
   }
 
   // Calculate Statistics
+  const actualTrades = trades.filter(trade => !trade.isNoTrade && trade.symbol !== 'NO-TRADE')
   const stats = {
-    totalTrades: trades.length,
-    totalProfit: trades.reduce((sum, trade) => sum + (trade.profitLoss > 0 ? trade.profitLoss : 0), 0),
-    totalLoss: trades.reduce((sum, trade) => sum + (trade.profitLoss < 0 ? Math.abs(trade.profitLoss) : 0), 0),
-    netPL: trades.reduce((sum, trade) => sum + trade.profitLoss, 0),
-    winningTrades: trades.filter(t => t.profitLoss > 0).length,
-    losingTrades: trades.filter(t => t.profitLoss < 0).length,
+    totalTrades: actualTrades.length,
+    totalProfit: actualTrades.reduce((sum, trade) => sum + (trade.profitLoss > 0 ? trade.profitLoss : 0), 0),
+    totalLoss: actualTrades.reduce((sum, trade) => sum + (trade.profitLoss < 0 ? Math.abs(trade.profitLoss) : 0), 0),
+    netPL: actualTrades.reduce((sum, trade) => sum + trade.profitLoss, 0),
+    winningTrades: actualTrades.filter(t => t.profitLoss > 0).length,
+    losingTrades: actualTrades.filter(t => t.profitLoss < 0).length,
   }
   stats.winRate = stats.totalTrades > 0 ? ((stats.winningTrades / stats.totalTrades) * 100).toFixed(1) : 0
 
   // Filter and Search Trades
-  const filteredTrades = trades.filter(trade => {
+  let filteredTrades = trades.filter(trade => {
     const matchesType = filterType === 'ALL' || trade.type === filterType
     const matchesSearch = trade.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          trade.notes.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesType && matchesSearch
+  })
+
+  // Sort Trades
+  filteredTrades = [...filteredTrades].sort((a, b) => {
+    switch(sortBy) {
+      case 'date-desc':
+        return new Date(b.date) - new Date(a.date)
+      case 'date-asc':
+        return new Date(a.date) - new Date(b.date)
+      case 'pl-desc':
+        return b.profitLoss - a.profitLoss
+      case 'pl-asc':
+        return a.profitLoss - b.profitLoss
+      default:
+        return new Date(b.date) - new Date(a.date)
+    }
   })
 
   return (
@@ -325,37 +348,9 @@ function App() {
       </header>
 
       <div className="container">
-        {/* Statistics Dashboard */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-label">Total Trades</div>
-            <div className="stat-value">{stats.totalTrades}</div>
-          </div>
-          <div className="stat-card profit">
-            <div className="stat-label">Total Profit</div>
-            <div className="stat-value">${stats.totalProfit.toFixed(2)}</div>
-          </div>
-          <div className="stat-card loss">
-            <div className="stat-label">Total Loss</div>
-            <div className="stat-value">${stats.totalLoss.toFixed(2)}</div>
-          </div>
-          <div className={`stat-card ${stats.netPL >= 0 ? 'profit' : 'loss'}`}>
-            <div className="stat-label">Net P/L</div>
-            <div className="stat-value">${stats.netPL.toFixed(2)}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Win Rate</div>
-            <div className="stat-value">{stats.winRate}%</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Win / Loss</div>
-            <div className="stat-value">{stats.winningTrades} / {stats.losingTrades}</div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="action-bar">
-          <button className="btn btn-primary" onClick={() => {
+        {/* Add Trade Button - Top */}
+        <div className="top-action-bar">
+          <button className="btn btn-primary add-trade-btn" onClick={() => {
             if (showForm) {
               handleCancel()  // Use handleCancel to properly clear form
             } else {
@@ -378,34 +373,39 @@ function App() {
               setShowForm(true)
             }
           }}>
-            {showForm ? '❌ Close' : '➕ Add Trade'}
+            {showForm ? <><X size={16} /> Close</> : <><Plus size={16} /> Add Trade</>}
           </button>
-          
-          <div className="filters">
-            <input 
-              type="text" 
-              placeholder="Search pair or notes (EURUSD, GOLD, etc.)..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <select 
-              value={filterType} 
-              onChange={(e) => setFilterType(e.target.value)}
-              className="filter-select"
-            >
-              <option value="ALL">All Trades</option>
-              <option value="BUY">Buy Only</option>
-              <option value="SELL">Sell Only</option>
-            </select>
-          </div>
         </div>
 
         {/* Add/Edit Trade Form */}
         {showForm && (
           <div className="form-card">
-            <h2>{editingId ? '✏️ Edit Trade' : '➕ Add New Trade'}</h2>
+            <h2>{editingId ? <><Zap size={20} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> Edit Trade</> : <><Plus size={20} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> Add New Trade</>}</h2>
             <form onSubmit={handleSubmit}>
+              <div className="no-trade-checkbox-wrapper">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.isNoTrade}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        isNoTrade: e.target.checked,
+                        symbol: e.target.checked ? 'NO-TRADE' : '',
+                        type: 'BUY',
+                        quantity: e.target.checked ? '0' : '',
+                        entryPrice: e.target.checked ? '0' : '',
+                        exitPrice: e.target.checked ? '0' : '',
+                        profitLoss: 0
+                      })
+                      if (e.target.checked) {
+                        setPairSearch('')
+                      }
+                    }}
+                  />
+                  <span className="checkbox-text">No trade found today</span>
+                </label>
+              </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Date </label>
@@ -417,6 +417,7 @@ function App() {
                     required 
                   />
                 </div>
+                {!formData.isNoTrade && (
                 <div className="form-group">
                   <label>Currency Pair </label>
                   <div className="searchable-dropdown">
@@ -454,7 +455,7 @@ function App() {
                     )}
                     {formData.symbol && (
                       <div className="selected-pair">
-                        ✅ <strong>{formData.symbol}</strong>
+                        ✓ <strong>{formData.symbol}</strong>
                       </div>
                     )}
                     <input 
@@ -465,8 +466,10 @@ function App() {
                     />
                   </div>
                 </div>
+                )}
               </div>
 
+              {!formData.isNoTrade && (
               <div className="form-row">
                 <div className="form-group">
                   <label>Type </label>
@@ -503,9 +506,7 @@ function App() {
                   >
                     <option value="">-- Select --</option>
                     <option value="1:1">1:1</option>
-                    <option value="1:1.5">1:1.5</option>
-                    <option value="1:2">1:2</option>
-                    <option value="1:2.5">1:2.5</option>
+                    <option value="1:2">1:2</option>    
                     <option value="1:3">1:3</option>
                     <option value="1:4">1:4</option>
                     <option value="1:5">1:5</option>
@@ -517,7 +518,9 @@ function App() {
                   </select>
                 </div>
               </div>
+              )}
 
+              {!formData.isNoTrade && (
               <div className="form-row">
                 <div className="form-group">
                   <label>Open Price </label>
@@ -543,19 +546,21 @@ function App() {
                   />
                 </div>
               </div>
+              )}
 
               <div className="form-group">
-                <label>Notes</label>
+                <label>{formData.isNoTrade ? 'Reason for No Trade' : 'Notes'}</label>
                 <textarea 
                   name="notes" 
-                  placeholder="Market condition, strategy, technical analysis, news impact."
+                  placeholder={formData.isNoTrade ? 'Why no trade today? (No setup, bad market, news event, etc.)' : 'Market condition, strategy, technical analysis, news impact.'}
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows="3"
+                  required={formData.isNoTrade}
                 />
               </div>
 
-              {/* Screenshot Upload */}
+              {!formData.isNoTrade && (
               <div className="form-group">
                 {!formData.screenshot ? (
                   <div className="screenshot-upload">
@@ -568,7 +573,7 @@ function App() {
                       style={{ display: 'none' }}
                     />
                     <label htmlFor="screenshot-input" className="upload-btn">
-                      📷 Upload Screenshot
+                      ⬆ Upload Screenshot
                     </label>
                     <p className="upload-hint">Click to upload chart screenshot or trade confirmation</p>
                   </div>
@@ -581,10 +586,11 @@ function App() {
                   </div>
                 )}
               </div>
+              )}
 
               <div className="form-actions">
                 <button type="submit" className="btn btn-success">
-                  {editingId ? '💾 Update ' : '✅ Save'}
+                  {editingId ? '⟳ Update ' : '✓ Save'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={handleCancel}>
                   Cancel
@@ -594,82 +600,229 @@ function App() {
           </div>
         )}
 
+        {/* Statistics Dashboard */}
+        {!showForm && (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-label">Total Trades</div>
+              <div className="stat-value">{stats.totalTrades}</div>
+            </div>
+            <div className="stat-card profit">
+              <div className="stat-label">Total Profit</div>
+              <div className="stat-value">${stats.totalProfit.toFixed(2)}</div>
+            </div>
+            <div className="stat-card loss">
+              <div className="stat-label">Total Loss</div>
+              <div className="stat-value">${stats.totalLoss.toFixed(2)}</div>
+            </div>
+            <div className={`stat-card ${stats.netPL >= 0 ? 'profit' : 'loss'}`}>
+              <div className="stat-label">Net P/L</div>
+              <div className="stat-value">${stats.netPL.toFixed(2)}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Win Rate</div>
+              <div className="stat-value">{stats.winRate}%</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Win / Loss</div>
+              <div className="stat-value">{stats.winningTrades} / {stats.losingTrades}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters Bar */}
+        <div className="action-bar">
+          <div className="filters-advanced">
+            <input 
+              type="text" 
+              placeholder="Search by pair or notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value)}
+              className="filter-select"
+            >
+              <option value="ALL">All Types</option>
+              <option value="BUY">Buy Only</option>
+              <option value="SELL">Sell Only</option>
+            </select>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)}
+              className="filter-select"
+            >
+              <option value="date-desc">Latest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="pl-desc">Highest P/L</option>
+              <option value="pl-asc">Lowest P/L</option>
+            </select>
+          </div>
+        </div>
+
         {/* Trades List */}
         <div className="trades-section">
-          <h2>📋 All Trades ({filteredTrades.length})</h2>
+          <div className="trades-header">
+            <h2>All Trades</h2>
+            <div className="trades-count">{filteredTrades.length} {filteredTrades.length === 1 ? 'trade' : 'trades'}</div>
+          </div>
           
           {filteredTrades.length === 0 ? (
             <div className="empty-state">
-              <p>😔 No trades found!</p>
+              <div className="empty-icon"><FileX size={48} strokeWidth={1.5} /></div>
+              <h3>No trades found</h3>
               <p className="hint">
                 {trades.length === 0 
-                  ? 'Add your first forex trade using the "Add Trade" button above' 
-                  : 'Try changing your filter or search terms'}
+                  ? 'Start by adding your first trade using the "Add Trade" button above' 
+                  : 'Try adjusting your filters or search terms'}
               </p>
             </div>
           ) : (
-            <div className="trades-list">
-              {filteredTrades.map(trade => (
-                <div key={trade.id} className="trade-card">
-                  <div className="trade-header">
-                    <div className="trade-symbol">
-                      <span className={`badge ${trade.type === 'BUY' ? 'badge-buy' : 'badge-sell'}`}>
-                        {trade.type}
-                      </span>
-                      <h3>{trade.symbol}</h3>
-                    </div>
-                    <div className={`trade-pl ${trade.profitLoss >= 0 ? 'profit' : 'loss'}`}>
-                      {trade.profitLoss >= 0 ? '📈' : '📉'} ${Math.abs(trade.profitLoss).toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div className="trade-details">
-                    <div className="detail-item">
-                      <span className="label">Date:</span>
-                      <span className="value">{new Date(trade.date).toLocaleDateString('en-US')}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Lot Size:</span>
-                      <span className="value">{trade.quantity}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Open Price:</span>
-                      <span className="value">${trade.entryPrice}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Close Price:</span>
-                      <span className="value">{trade.exitPrice > 0 ? `$${trade.exitPrice}` : 'Pending'}</span>
-                    </div>
-                    {trade.riskRewardRatio && (
-                      <div className="detail-item">
-                        <span className="label">Risk:Reward:</span>
-                        <span className="value badge-rr">{trade.riskRewardRatio}</span>
+            <div className={`trades-grid ${viewMode}`}>
+              {filteredTrades.map(trade => {
+                const isExpanded = expandedTrade === trade.id
+                const isNoTrade = trade.isNoTrade || trade.symbol === 'NO-TRADE'
+                const isWin = trade.profitLoss >= 0
+                const pipValue = trade.pipValue || 0
+                const pips = pipValue !== 0 ? (trade.profitLoss / pipValue).toFixed(1) : 0
+                
+                if (isNoTrade) {
+                  return (
+                    <div key={trade.id} className="trade-card-advanced no-trade-card">
+                      <div className="card-header-advanced">
+                        <div className="header-left">
+                          <div className="trade-pair">
+                            <span className="pair-symbol"><XCircle size={30} style={{ marginRight: '8px', verticalAlign: 'middle' }} />NO TRADE</span>
+                            <span className="trade-badge no-trade-badge">No Setup</span>
+                          </div>
+                          <div className="trade-date">
+                            {new Date(trade.date).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  {trade.notes && (
-                    <div className="trade-notes">
-                      <strong>Notes:</strong> {trade.notes}
+                      <div className="card-body-advanced">
+                        {trade.notes && (
+                          <div className="notes-section">
+                            <div className="notes-label">Reason:</div>
+                            <div className="notes-text">{trade.notes}</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="card-footer-advanced">
+                        <div className="action-buttons">
+                          <button 
+                            className="action-btn delete-btn" 
+                            onClick={() => handleDelete(trade.id)}
+                            title="Delete Entry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-
-                  {trade.screenshot && (
-                    <div className="trade-screenshot">
-                      <img src={trade.screenshot} alt="Trade screenshot" />
+                  )
+                }
+                
+                return (
+                  <div key={trade.id} className={`trade-card-advanced ${isWin ? 'win' : 'loss'} ${isExpanded ? 'expanded' : ''}`}>
+                    {/* Card Header */}
+                    <div className="card-header-advanced">
+                      <div className="header-left">
+                        <div className="trade-pair">
+                          <span className="pair-symbol">{trade.symbol}</span>
+                          <span className={`trade-badge ${trade.type.toLowerCase()}`}>
+                            {trade.type === 'BUY' ? '▲ LONG' : '▼ SHORT'}
+                          </span>
+                        </div>
+                        <div className="trade-date">
+                          ◷ {new Date(trade.date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          })}
+                        </div>
+                      </div>
+                      <div className="header-right">
+                        <div className={`pl-amount ${isWin ? 'win' : 'loss'}`}>
+                          {isWin ? '+' : ''}{trade.profitLoss >= 0 ? '$' : '-$'}{Math.abs(trade.profitLoss).toFixed(2)}
+                        </div>
+                        {pips !== 0 && (
+                          <div className="pips-display">
+                            {isWin ? '+' : ''}{pips} pips
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                  <div className="trade-actions">
-                    <button className="btn-icon btn-edit" onClick={() => handleEdit(trade)} title="Edit">
-                      Edit
-                    </button>
-                    <button className="btn-icon btn-delete" onClick={() => handleDelete(trade.id)} title="Delete">
-                      Delete
-                    </button>
+                    {/* Card Body */}
+                    <div className="card-body-advanced">
+                      <div className="trade-metrics">
+                        <div className="metric">
+                          <span className="metric-label">Entry</span>
+                          <span className="metric-value">${trade.entryPrice}</span>
+                        </div>
+                        <div className="metric">
+                          <span className="metric-label">Exit</span>
+                          <span className="metric-value">${trade.exitPrice || 'Pending'}</span>
+                        </div>
+                        <div className="metric">
+                          <span className="metric-label">Lot Size</span>
+                          <span className="metric-value">{trade.quantity}</span>
+                        </div>
+                        {trade.riskRewardRatio && (
+                          <div className="metric">
+                            <span className="metric-label">R:R</span>
+                            <span className="metric-value rr-badge">{trade.riskRewardRatio}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Always Show Notes and Screenshot */}
+                      {(trade.notes || trade.screenshot) && (
+                        <div className="expanded-content">
+                          {trade.notes && (
+                            <div className="notes-section">
+                              <div className="notes-label">⌘ Trade Notes:</div>
+                              <div className="notes-text">{trade.notes}</div>
+                            </div>
+                          )}
+                          {trade.screenshot && (
+                            <div className="screenshot-section">
+                              <img src={trade.screenshot} alt="Trade chart" className="trade-screenshot-img" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="card-footer-advanced">
+                      <div className="action-buttons">
+                        <button 
+                          className="action-btn edit-btn" 
+                          onClick={() => handleEdit(trade)}
+                          title="Edit Trade"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          className="action-btn delete-btn" 
+                          onClick={() => handleDelete(trade.id)}
+                          title="Delete Trade"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -681,18 +834,18 @@ function App() {
         <div className="modal-overlay" onClick={cancelDelete}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>🗑️ Delete Trade</h3>
+              <h3>Delete Trade</h3>
             </div>
             <div className="modal-body">
               <p>Are you sure you want to delete this trade?</p>
               <div className="delete-trade-info">
                 <strong>{deleteModal.tradeName}</strong>
               </div>
-              <p className="warning-text">⚠️ This action cannot be undone!</p>
+              <p className="warning-text">This action cannot be undone!</p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-danger" onClick={confirmDelete}>
-                🗑️ Yes, Delete
+                Yes, Delete
               </button>
               <button className="btn btn-secondary" onClick={cancelDelete}>
                 Cancel
@@ -705,4 +858,255 @@ function App() {
   )
 }
 
-export default App
+// New Main App Component with Layout
+function MainApp() {
+  const [activeView, setActiveView] = useState(() => {
+    return localStorage.getItem('activeView') || 'dashboard'
+  })
+  const [strategies, setStrategies] = useState({})
+  const [currentStrategy, setCurrentStrategy] = useState(null)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [showStrategyModal, setShowStrategyModal] = useState(false)
+  const [newStrategyName, setNewStrategyName] = useState('')
+  const [tempBalance, setTempBalance] = useState('')
+
+  // Save active view to localStorage
+  useEffect(() => {
+    localStorage.setItem('activeView', activeView)
+  }, [activeView])
+
+  // Load strategies from localStorage on mount
+  useEffect(() => {
+    const savedStrategies = localStorage.getItem('tradingStrategies')
+    if (savedStrategies) {
+      const parsedStrategies = JSON.parse(savedStrategies)
+      setStrategies(parsedStrategies)
+      
+      const lastStrategy = localStorage.getItem('currentStrategy')
+      if (lastStrategy && parsedStrategies[lastStrategy]) {
+        setCurrentStrategy(lastStrategy)
+      } else {
+        const firstStrategy = Object.keys(parsedStrategies)[0]
+        if (firstStrategy) {
+          setCurrentStrategy(firstStrategy)
+        }
+      }
+    }
+  }, [])
+
+  // Save strategies to localStorage whenever they change
+  useEffect(() => {
+    if (Object.keys(strategies).length > 0) {
+      localStorage.setItem('tradingStrategies', JSON.stringify(strategies))
+    } else {
+      localStorage.removeItem('tradingStrategies')
+      localStorage.removeItem('currentStrategy')
+    }
+  }, [strategies])
+
+  // Save current strategy selection
+  useEffect(() => {
+    if (currentStrategy) {
+      localStorage.setItem('currentStrategy', currentStrategy)
+    }
+  }, [currentStrategy])
+
+  const handleCreateStrategy = () => {
+    if (!newStrategyName.trim()) return
+    
+    const balance = parseFloat(tempBalance) || 10000
+    const strategyId = Date.now().toString()
+    
+    setStrategies(prev => ({
+      ...prev,
+      [strategyId]: {
+        id: strategyId,
+        name: newStrategyName.trim(),
+        startingBalance: balance,
+        trades: [],
+        createdAt: new Date().toISOString()
+      }
+    }))
+    
+    setCurrentStrategy(strategyId)
+    setShowWelcomeModal(false)
+    setNewStrategyName('')
+    setTempBalance('')
+  }
+
+  const handleAddNewStrategy = () => {
+    setNewStrategyName('')
+    setTempBalance('')
+    setShowStrategyModal(true)
+  }
+
+  const handleSwitchStrategy = (strategyId) => {
+    setCurrentStrategy(strategyId)
+  }
+
+  const handleDeleteStrategy = (strategyId) => {
+    const newStrategies = { ...strategies }
+    delete newStrategies[strategyId]
+    setStrategies(newStrategies)
+    
+    if (currentStrategy === strategyId) {
+      const firstStrategy = Object.keys(newStrategies)[0]
+      setCurrentStrategy(firstStrategy || null)
+    }
+  }
+
+  const updateStrategyTrades = (trades) => {
+    if (!currentStrategy) return
+    
+    setStrategies(prev => ({
+      ...prev,
+      [currentStrategy]: {
+        ...prev[currentStrategy],
+        trades: trades
+      }
+    }))
+  }
+
+  const getCurrentStrategyData = () => {
+    if (!currentStrategy || !strategies[currentStrategy]) {
+      return { trades: [], startingBalance: 10000, name: '' }
+    }
+    return strategies[currentStrategy]
+  }
+
+  const currentStrategyData = getCurrentStrategyData()
+
+  const renderView = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return <Dashboard 
+          trades={currentStrategyData.trades} 
+          startingBalance={currentStrategyData.startingBalance}
+          hasStrategy={!!currentStrategy}
+          onCreateStrategy={handleAddNewStrategy}
+        />
+      case 'trades':
+        if (!currentStrategy) {
+          return (
+            <div className="trades-empty-state">
+              <div className="empty-state-content">
+                <div className="empty-state-icon">
+                  <TrendingUp size={64} strokeWidth={2} />
+                </div>
+                <h2>No Strategy Selected</h2>
+                <p>Create your first startegy and track your trades</p>
+                <button 
+                  className="btn btn-primary btn-large create-strategy-btn"
+                  onClick={handleAddNewStrategy}
+                >
+                  <Plus size={20} strokeWidth={3} />
+                  Create Your First Strategy
+                </button>
+              </div>
+            </div>
+          )
+        }
+        return <App 
+          existingTrades={currentStrategyData.trades}
+          onTradesUpdate={updateStrategyTrades}
+        />
+      case 'daily-journal':
+        return <div className="coming-soon"><h2>Daily Journal</h2><p>Coming soon...</p></div>
+      case 'notebook':
+        return <div className="coming-soon"><h2>Notebook</h2><p>Coming soon...</p></div>
+      case 'playbook':
+        return <div className="coming-soon"><h2>Playbook</h2><p>Coming soon...</p></div>
+      case 'reports':
+        return <div className="coming-soon"><h2>Reports</h2><p>Coming soon...</p></div>
+      case 'insights':
+        return <div className="coming-soon"><h2>Insights</h2><p>Coming soon...</p></div>
+      default:
+        return <Dashboard 
+          trades={currentStrategyData.trades} 
+          startingBalance={currentStrategyData.startingBalance}
+          hasStrategy={!!currentStrategy}
+          onCreateStrategy={handleAddNewStrategy}
+        />
+    }
+  }
+
+  return (
+    <>
+      <div className="app-container">
+        <Sidebar 
+          activeView={activeView} 
+          setActiveView={setActiveView}
+          strategies={strategies}
+          currentStrategy={currentStrategy}
+          onSwitchStrategy={handleSwitchStrategy}
+          onAddStrategy={handleAddNewStrategy}
+          onDeleteStrategy={handleDeleteStrategy}
+        />
+        <main className="main-content">
+          {renderView()}
+        </main>
+      </div>
+
+
+
+      {/* Add New Strategy Modal */}
+      {showStrategyModal && (
+        <div className="modal-overlay" onClick={() => setShowStrategyModal(false)}>
+          <div className="modal-content welcome-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><PlusCircle size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> New Trading Strategy</h2>
+            </div>
+            <div className="modal-body">
+              <div className="welcome-balance-input">
+                <label>Strategy Name *</label>
+                <input
+                  type="text"
+                  value={newStrategyName}
+                  onChange={(e) => setNewStrategyName(e.target.value)}
+                  placeholder="e.g., Day Trading, Options Strategy"
+                  autoFocus
+                />
+              </div>
+
+              <div className="welcome-balance-input">
+                <label>Starting Balance ($) *</label>
+                <input
+                  type="number"
+                  value={tempBalance}
+                  onChange={(e) => setTempBalance(e.target.value)}
+                  placeholder="e.g., 10000"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newStrategyName.trim()) {
+                      handleCreateStrategy()
+                      setShowStrategyModal(false)
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowStrategyModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  handleCreateStrategy()
+                  setShowStrategyModal(false)
+                }}
+                disabled={!newStrategyName.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+export default MainApp
