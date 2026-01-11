@@ -917,26 +917,38 @@ function MainApp() {
     const balance = parseFloat(tempBalance) || 10000
     const strategyId = Date.now().toString()
     
+    const newStrategy = {
+      id: strategyId,
+      name: newStrategyName.trim(),
+      startingBalance: balance,
+      trades: [],
+      createdAt: new Date().toISOString()
+    }
+    
+    // Update strategies first
     setStrategies(prev => ({
       ...prev,
-      [strategyId]: {
-        id: strategyId,
-        name: newStrategyName.trim(),
-        startingBalance: balance,
-        trades: [],
-        createdAt: new Date().toISOString()
-      }
+      [strategyId]: newStrategy
     }))
     
+    // Set current strategy
     setCurrentStrategy(strategyId)
+    
+    // Close modals
     setShowWelcomeModal(false)
+    setShowStrategyModal(false)
+    
+    // Reset form
     setNewStrategyName('')
-    setTempBalance('')
+    setTempBalance('10000')
+    
+    // Switch to dashboard view
+    setActiveView('dashboard')
   }
 
   const handleAddNewStrategy = () => {
     setNewStrategyName('')
-    setTempBalance('')
+    setTempBalance('10000') // Set a default value
     setShowStrategyModal(true)
   }
 
@@ -1051,8 +1063,22 @@ function MainApp() {
 
       {/* Add New Strategy Modal */}
       {showStrategyModal && (
-        <div className="modal-overlay" onClick={() => setShowStrategyModal(false)}>
-          <div className="modal-content welcome-modal" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowStrategyModal(false)}
+        >
+          <div 
+            className="modal-content welcome-modal" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              className="modal-close-btn"
+              onClick={() => setShowStrategyModal(false)}
+              aria-label="Close"
+              type="button"
+            >
+              <X size={24} />
+            </button>
             <div className="modal-header">
               <h2><PlusCircle size={24} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} /> New Trading Strategy</h2>
             </div>
@@ -1078,7 +1104,6 @@ function MainApp() {
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && newStrategyName.trim()) {
                       handleCreateStrategy()
-                      setShowStrategyModal(false)
                     }
                   }}
                 />
@@ -1088,16 +1113,15 @@ function MainApp() {
               <button 
                 className="btn btn-secondary" 
                 onClick={() => setShowStrategyModal(false)}
+                type="button"
               >
                 Cancel
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={() => {
-                  handleCreateStrategy()
-                  setShowStrategyModal(false)
-                }}
+                onClick={handleCreateStrategy}
                 disabled={!newStrategyName.trim()}
+                type="button"
               >
                 Create
               </button>

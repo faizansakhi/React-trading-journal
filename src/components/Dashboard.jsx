@@ -4,58 +4,11 @@ import WidgetsPanel from './WidgetsPanel'
 import { TrendingUp, DollarSign, Calendar as CalendarIcon, BarChart3, Plus } from 'lucide-react'
 
 const Dashboard = ({ trades, startingBalance, hasStrategy, onCreateStrategy }) => {
+  // MUST call all hooks before ANY conditional returns
   const [dateRange, setDateRange] = useState('all')
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
-  // If no strategy exists, show empty state
-  if (!hasStrategy) {
-    return (
-      <div className="dashboard-empty-state">
-        <div className="empty-state-content">
-          <div className="empty-state-icon">
-            <BarChart3 size={64} strokeWidth={2} />
-          </div>
-          <h2>Welcome to Trading Journal!</h2>
-          <p>Create your first strategy to start your trading journey</p>
-          <button 
-            className="btn btn-primary btn-large create-strategy-btn"
-            onClick={onCreateStrategy}
-          >
-            <Plus size={20} strokeWidth={3} />
-            Create Your First Strategy
-          </button>
-          <div className="empty-state-features">
-            <div className="feature-item">
-              <div className="feature-icon">
-                <TrendingUp size={24} strokeWidth={2} />
-              </div>
-              <span>Track Multiple Strategies</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">
-                <DollarSign size={24} strokeWidth={2} />
-              </div>
-              <span>Monitor P&L in Real-time</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">
-                <CalendarIcon size={24} strokeWidth={2} />
-              </div>
-              <span>Calendar View of Trades</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">
-                <BarChart3 size={24} strokeWidth={2} />
-              </div>
-              <span>Detailed Analytics</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Calculate statistics with useMemo for performance
+  // Calculate statistics with useMemo for performance - MUST be before conditional return
   const stats = useMemo(() => {
     if (!trades || trades.length === 0) {
       return {
@@ -134,6 +87,55 @@ const Dashboard = ({ trades, startingBalance, hasStrategy, onCreateStrategy }) =
       winningTrades,
     }
   }, [trades, currentMonth])
+
+  // NOW conditional return AFTER all hooks
+  if (!hasStrategy) {
+    return (
+      <div className="dashboard-empty-state">
+        <div className="empty-state-content">
+          <div className="empty-state-icon">
+            <BarChart3 size={64} strokeWidth={2} />
+          </div>
+          <h2>Welcome to Trading Journal!</h2>
+          <p>Create your first strategy to start your trading journey</p>
+          <button 
+            className="btn btn-primary btn-large create-strategy-btn"
+            onClick={onCreateStrategy}
+            type="button"
+          >
+            <Plus size={20} strokeWidth={3} />
+            Create Your First Strategy
+          </button>
+          <div className="empty-state-features">
+            <div className="feature-item">
+              <div className="feature-icon">
+                <TrendingUp size={24} strokeWidth={2} />
+              </div>
+              <span>Track Multiple Strategies</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <DollarSign size={24} strokeWidth={2} />
+              </div>
+              <span>Monitor P&L in Real-time</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <CalendarIcon size={24} strokeWidth={2} />
+              </div>
+              <span>Calendar View of Trades</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">
+                <BarChart3 size={24} strokeWidth={2} />
+              </div>
+              <span>Detailed Analytics</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
